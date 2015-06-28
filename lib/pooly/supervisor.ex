@@ -17,18 +17,4 @@ defmodule Pooly.Supervisor do
     supervise(children, opts)
   end
 
-  def handle_info({:start_worker_supervisor, sup, mfa, server}, state) do
-    {:ok, _worker} = Supervisor.start_child(sup, supervisor_spec(mfa))
-    {:noreply, state}
-  end
-
-  #####################
-  # Private Functions #
-  #####################
-
-  defp supervisor_spec(mfa) do
-    opts = [shutdown: 10000, restart: :temporary]
-    supervisor(Pooly.WorkerSupervisor, [mfa], opts)
-  end
-
 end

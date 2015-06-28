@@ -7,7 +7,15 @@ defmodule Pooly.Server do
   end
 
   def start_link(sup, pool_config) do
-    GenServer.start_link(__MODULE__, [sup, pool_config])
+    GenServer.start_link(__MODULE__, [sup, pool_config], name: __MODULE__)
+  end
+
+  def checkout do
+    GenServer.call(__MODULE__, :checkout)
+  end
+
+  def checkin(worker_pid) do
+    GenServer.cast(__MODULE__, {:checkin, worker_pid})
   end
 
   #############
@@ -35,6 +43,20 @@ defmodule Pooly.Server do
   def init([], state) do
     send(self, :start_worker_supervisor)
     {:ok, state}
+  end
+
+  def handle_call(:checkout, _from, %{workers: workers} = state) do
+    case workers do
+      [first | rest] ->
+        {:reply, first, %{state | workers: rest}}
+
+      [] ->
+        {:reply, :noproc, state}
+    end
+  end
+
+  def handle_cast({:checkin, worker_pid}, %{workers: workers} = state) do
+    {:noreply, %{state | workers: [worker_pid|workers]}}
   end
 
   def handle_info(:start_worker_supervisor, state = %{sup: sup, mfa: mfa, size: size}) do
