@@ -286,5 +286,5 @@ Up until now, it is the onus of the consumer process to check back in a worker p
 
 ### Blocking and Queuing
 
-When all workers are busy, a consumer that is willing to wait (`block` is `true`) will be queued up. For a consumer that blocks, once a worker is checked back into the pool.
+When all workers are busy, a consumer that is willing to wait (`block` is `true`) will be queued up. For a consumer that blocks, once a worker is checked back into the pool, the consumer is then unblocked and given the worker.
 
