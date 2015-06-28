@@ -11,7 +11,7 @@ _Pooly_ is a worker pool library inspired by other Erlang worker pool libraries 
 
 The whole point of this exercise is to make this project a part of the example project in Chapter 6 of the [book](http://www.exotpbook.com).
 
-## NOTE: WIP, NOTHING TO SEE HERE
+## WORK IN PROGRESS
 
 ## API 
 
@@ -37,7 +37,7 @@ where `pool_config` consists of:
 
 ```
 name:          the pool name
-start_mfa:     the module, function and arguments to start the workers
+mfa:           the module, function and arguments to start the workers
 size:          maximum pool size
 max_overflow:  maximum number of workers created if pool is empty
 ```
@@ -52,42 +52,239 @@ P.transaction(pool, fun, timeout)
 P.status(pool)
 ```
 
-### Setting up a static supervision tree
+# Version 1
 
-Should be able to read in a configuration file _something_ like this:
+Although the first version is the most basic, it will get us a pretty long way, since it sets up the framework of the versions to come.
 
+## Features
 
-```erlang
-{application, example, [
-    {description, "An example application"},
-    {vsn, "0.1"},
-    {applications, [kernel, stdlib, sasl, crypto, ssl]},
-    {modules, [example, example_worker]},
-    {registered, [example]},
-    {mod, {example, []}},
-    {env, [
-        {pools, [
-            {pool1, [
-                {size, 10},
-                {max_overflow, 20}
-            ], [
-                {hostname, "127.0.0.1"},
-                {database, "db1"},
-                {username, "db1"},
-                {password, "abc123"}
-            ]},
-            {pool2, [
-                {size, 5},
-                {max_overflow, 10}
-            ], [
-                {hostname, "127.0.0.1"},
-                {database, "db2"},
-                {username, "db2"},
-                {password, "abc123"}
-            ]}
-        ]}
-    ]}
-]}.
+* Supports a _single_ pool
+* Supports a _fixed_ number of workers
+* No queuing
+* No blocking
+
+## Details
+
+When Pooly first starts (`Pooly.start_link`) it is just this:
+
+```
+              [Pooly.Supervisor]
+                /
+               /
+        [Pooly.Server]
 ```
 
-Note: This is in Erlang, Elixir version coming soon, once I figured everything out.
+This is because there is no pool to be started yet. To do that:
+
+```elixir
+Pool.start_pool(:some_worker_pool, {SomeWorker, :start_link, []})
+```
+
+This creates a `Pooly.WorkerSupervisor` with a `:simple_one_for_one` strategy that essentially makes it a `SomeWorker` process factory. This is the _final_ state of the supervision tree, with no workers started yet.
+
+
+```
+              [Pooly.Supervisor]
+                /            \
+               /              \
+        [Pooly.Server]    [Pooly.WorkerSupervisor]
+```
+
+Next, we need to work on limiting the number of workers. In order for this to happen, we need to introduce another variable. One option we _could_ do is:
+
+```elixir
+Pool.start_pool(:some_worker_pool, [5, {SomeWorker, :start_link, []]})
+```
+
+However, someone else taking a look at the code (that will be _you_, 2 weeks later) will be left wondering what exactly `5` does. A better way of expressing it would be using a _keyword list_:
+
+```elixir
+[
+  mfa: {SomeWorker, :start_link, []},
+  size: 5
+]
+```
+
+With a size, we can create a fixed number of workers each time the supervisor starts. Put another way, the supervisor will create `size` number of workers.
+
+### Checking out and in workers
+
+The notion of checking in and out of workers is just like acquiring and releasing of a resource. In this case, the resource is the an available worker, represented by a process id.
+
+To support this operation, we have the following functions:
+
+```elixir
+Pooly.checkout # returns an available worker pid, or :noproc if unavailable
+```
+
+When done, it the consumer of the worker pid (the process that did the previously check-out) must check the worker pid back in, otherwise, it will cause a resource starvation. An example could be a single process checking out every single worker, and not checking in back to the pool. We will fix this limitation later on. To check-in a worker:
+
+```elixir
+Pooly.checkin(:some_worker_pool, worker_pid)
+```
+
+### Monitoring
+
+Besides checking in a worker, the worker could crash too. Othertimes, the worker could exit normally.  Since the supervisor stance on restarting crashed workers is `:temporary`, this means that workers are never restarted. (Why?) In order to handle these various situations, we need to know when something happens to a checked out worker process. Monitors are perfect for this.
+
+### Server state
+
+At the end of this iteration, the server state should look like:
+
+```elixir
+defmodule State do
+   defstruct supervisor: nil,
+             workers: [],
+             monitors: :ets.new(:monitors, [:private]),
+             size: 5
+ end
+```
+
+### Running it
+
+__TODO:__ _Create a sample worker and put `Pooly` through its paces_
+
+# Version 2
+
+## Features
+
+* Supports _multiple_ pools by dynamically creating supervisors
+* Supports a _variable_ number of workers
+
+
+So far, our worker pool can only handle one pool, which isn't terribly useful. In this iteration, we will add support for multiple pools and finally add more bells and whistles (be specific about this).
+
+### Supporting multiple queues
+
+The most straight forward way would be to design the supervision tree like so:
+
+```
+               [Pooly.Supervisor]
+                /      /  |   \
+               /      /   |    \
+        [Pooly.Server]    |     \
+                    /     |      \
+                   /      |  [Pooly.WorkerSupervisor]
+     [Pooly.WorkerSupervisor]
+                          |
+                  [Pooly.WorkerSupervisor]
+```
+
+### Error Kernels and Error Isolation
+
+We are essentially sticking more `WorkerSupervisor`'s into `Pooly.Supervisor`. This is a bad design. The issue here is the _error kernel_. Issues with any of the `WorkerSupervisor`s shouldn't affect the `Pooly.Server`. (More reasons needed, separation of concerns). It pays to think about what happens when a process crashes and who gets affected.
+
+Fortunately, the fix is to add another supervisor to handle all the worker supervisors - `Pooly.WorkersSupervisor`. This is the design we are shooting for:
+
+```
+              [Pooly.Supervisor]
+                /            \
+               /              \
+        [Pooly.Server]    [Pooly.WorkersSupervisor]
+                            /         |         \
+                           /          |   [Pooly.WorkerSupervisor]
+        [Pooly.WorkerSupervisor]      |
+                          [Pooly.WorkerSupervisor]
+```
+
+
+
+Before we get into coding, consider an alternative design like the one below.
+
+### Supporting a variable number of workers
+
+Next, we want to add some flexibility to `Pooly`. In particular, we want to specify a _maximum overflow_ of workers. What does this buy us? Consider the following scenario. (More research. See Sasa's [article](www.theerlangelist.com/2013/04/parallelizing-independent-tasks.html) on setting size to zero and overflow to 5, essentially for _dynamic_ workers)
+
+### Server state
+
+```elixir
+defmodule State do
+  defstruct supervisor: nil,
+            workers: [],
+            monitors: :ets.new(:monitors, [:private]),
+            size: 5,
+            overflow: 0,
+            max_overflow: 10,
+end
+```
+
+### Running it
+
+__TODO:__ _Create a sample worker and put `Pooly` through its paces_
+
+# Version 3
+
+In this version, we are going to fix a glaring deficiency from the previous version.
+
+Currently, the poor `Pooly.Server` process has to handle every request that is meant for _any_ pool.
+
+
+```
+              [Pooly.Supervisor]
+                /            \
+               /              \
+        [Pooly.Server]    [Pooly.WorkersSupervisor]
+                            /         |         \
+                           /          |   [Pooly.WorkerSupervisor]
+        [Pooly.WorkerSupervisor]      |
+                          [Pooly.WorkerSupervisor]
+```
+
+
+This means that the lone server process might pose a bottle neck if messages to it come fast and furious, and could potentially flood it's mailbox. `Pooly.Server` also presents a single point of failure, since it contains the state of _every_ pool, and having the server process dead renders the pools useless.
+
+The simplest thing to do is to have a dedicated `Pool.Server` process for each pool. So let's stick `Pooly.Server` into `Pool.WorkersSupervisor` ok? Not ok! If we did that, then `WorkersSupervisor` is going to have to supervise `Pool.Server`s too.
+
+> A good exercise would be to quickly sketch out how you think the supervision tree should look like.
+
+```
+              [Pooly.Supervisor]
+                               \
+                                \
+                           [Pooly.PoolsSupervisor]
+                            /         |         \
+                           /          |         [*]
+        [Pooly.PoolSupervisor]        |
+            /             \           [*]
+        [Pooly.Server]   [Pooly.WorkerSupervisor]
+```
+
+You might find it slightly weird (I do!) that the `Pooly.Supervisor` is only supervising one child. Why couldn't we let it supervise the `Pooly.PoolSupervisor`s instead? Well, we need something to take the place of `Pool.Server`. In particular, we need a process to start the pools! Now, starting the pool involves:
+
+* Telling `PoolsSupervisor` to start a `Pooly.PoolSupervisor` child
+* `Pooly.PoolSupervisor` will initialize a `Pooly.Server` and a `Pooly.WorkerSupervisor`.
+
+In order words, this is how we want the design to look like:
+
+```
+              [Pooly.Supervisor]
+                /              \
+               /                \
+[Pooly.PoolStarter]         [Pooly.PoolsSupervisor]
+                            /         |         \
+                           /          |         [*]
+        [Pooly.PoolSupervisor]        |
+            /             \           [*]
+        [Pooly.Server]   [Pooly.WorkerSupervisor]
+```
+
+The `Pooly.PoolStarter` process is a simple GenServer that is stateless, since there is not need for it to keep any.
+
+# Version 4
+
+## Features
+
+* Transactions
+* Queuing 
+* Blocking
+
+__NOTE:__ _Check if async is for queuing and sync is for blocking. If so, then that's super awesome because there is a very nice symmetry._
+
+### Implementing automatic checkout/checkin with transactions
+
+Up until now, it is the onus of the consumer process to check back in a worker process once it is done with it. However, this is an unreasonable requirement, and we can do better. Just like a database transaction, once the consumer process is done with it, we can automatically have the worker process checked back in. How do we do that?
+
+### Blocking and Queuing
+
+When all workers are busy, a consumer that is willing to wait (`block` is `true`) will be queued up. For a consumer that blocks, once a worker is checked back into the pool.
+
