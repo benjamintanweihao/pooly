@@ -56,12 +56,13 @@ P.status(pool)
 
 Although the first version is the most basic, it will get us a pretty long way, since it sets up the framework of the versions to come.
 
-## Features
+## Characteristics
 
 * Supports a _single_ pool
 * Supports a _fixed_ number of workers
 * No queuing
 * No blocking
+* No recovery when consumer and/or worker process fail
 
 ## Details
 
@@ -123,15 +124,6 @@ When done, it the consumer of the worker pid (the process that did the previousl
 Pooly.checkin(:some_worker_pool, worker_pid)
 ```
 
-### Linking
-
-Besides checking in a worker, the worker could crash too. Othertimes, the worker could exit normally.  Since the supervisor stance on restarting crashed workers is `:temporary`, this means that workers are never restarted. That's because in general we never know whether a worker should be restarted. While you can build this into the implementation like having it as a setting, we will keep it simple. 
-
-In order to handle these various situations, we need to know when something happens to a checked out worker process. Our worker processes should crash too if the server crashes. Links (and trapping exits) are perfect for this. What should happen when a worker crashes? Well, the pool should automatically create a new worker, no questions asked.
-
-### Monitoring
-
-How do we know when a consumer process dies? Monitors! What should happen then when we detect that a consumer process dies? How can we retrieve the worker? (Monitor reference!)
 
 ### Server state
 
@@ -152,7 +144,27 @@ __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 
 # Version 2
 
-## Features
+## Characteristics
+
+* Supports a _single_ pool
+* Supports a _fixed_ number of workers
+* No queuing
+* No blocking
+* recovery when consumer and/or worker process fail
+
+### Linking
+
+Besides checking in a worker, the worker could crash too. Othertimes, the worker could exit normally.  Since the supervisor stance on restarting crashed workers is `:temporary`, this means that workers are never restarted. That's because in general we never know whether a worker should be restarted. While you can build this into the implementation like having it as a setting, we will keep it simple. 
+
+In order to handle these various situations, we need to know when something happens to a checked out worker process. Our worker processes should crash too if the server crashes. Links (and trapping exits) are perfect for this. What should happen when a worker crashes? Well, the pool should automatically create a new worker, no questions asked.
+
+### Monitoring
+
+How do we know when a consumer process dies? Monitors! What should happen then when we detect that a consumer process dies? How can we retrieve the worker? (Monitor reference!)
+
+# Version 3
+
+## Characteristics
 
 * Supports _multiple_ pools by dynamically creating supervisors
 * Supports a _variable_ number of workers
@@ -192,10 +204,6 @@ Fortunately, the fix is to add another supervisor to handle all the worker super
                           [Pooly.WorkerSupervisor]
 ```
 
-
-
-Before we get into coding, consider an alternative design like the one below.
-
 ### Supporting a variable number of workers
 
 Next, we want to add some flexibility to `Pooly`. In particular, we want to specify a _maximum overflow_ of workers. What does this buy us? Consider the following scenario. (More research. See Sasa's [article](www.theerlangelist.com/2013/04/parallelizing-independent-tasks.html) on setting size to zero and overflow to 5, essentially for _dynamic_ workers)
@@ -217,7 +225,7 @@ end
 
 __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 
-# Version 3
+# Version 4
 
 In this version, we are going to fix a glaring deficiency from the previous version.
 
@@ -250,7 +258,7 @@ The simplest thing to do is to have a dedicated `Pool.Server` process for each p
                             /         |         \
                            /          |         [*]
         [Pooly.PoolSupervisor]        |
-            /             \           [*]
+            /             \          [*]
         [Pooly.Server]   [Pooly.WorkerSupervisor]
 ```
 
@@ -275,15 +283,13 @@ In order words, this is how we want the design to look like:
 
 The `Pooly.PoolStarter` process is a simple GenServer that is stateless, since there is not need for it to keep any.
 
-# Version 4
+# Version 5
 
 ## Features
 
 * Transactions
 * Queuing 
 * Blocking
-
-__NOTE:__ _Check if async is for queuing and sync is for blocking. If so, then that's super awesome because there is a very nice symmetry._
 
 ### Implementing automatic checkout/checkin with transactions
 
