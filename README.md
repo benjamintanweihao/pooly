@@ -123,9 +123,15 @@ When done, it the consumer of the worker pid (the process that did the previousl
 Pooly.checkin(:some_worker_pool, worker_pid)
 ```
 
+### Linking
+
+Besides checking in a worker, the worker could crash too. Othertimes, the worker could exit normally.  Since the supervisor stance on restarting crashed workers is `:temporary`, this means that workers are never restarted. That's because in general we never know whether a worker should be restarted. While you can build this into the implementation like having it as a setting, we will keep it simple. 
+
+In order to handle these various situations, we need to know when something happens to a checked out worker process. Our worker processes should crash too if the server crashes. Links (and trapping exits) are perfect for this. What should happen when a worker crashes? Well, the pool should automatically create a new worker, no questions asked.
+
 ### Monitoring
 
-Besides checking in a worker, the worker could crash too. Othertimes, the worker could exit normally.  Since the supervisor stance on restarting crashed workers is `:temporary`, this means that workers are never restarted. (Why?) In order to handle these various situations, we need to know when something happens to a checked out worker process. Monitors are perfect for this.
+How do we know when a consumer process dies? Monitors! What should happen then when we detect that a consumer process dies? How can we retrieve the worker? (Monitor reference!)
 
 ### Server state
 
@@ -150,7 +156,6 @@ __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 
 * Supports _multiple_ pools by dynamically creating supervisors
 * Supports a _variable_ number of workers
-
 
 So far, our worker pool can only handle one pool, which isn't terribly useful. In this iteration, we will add support for multiple pools and finally add more bells and whistles (be specific about this).
 
