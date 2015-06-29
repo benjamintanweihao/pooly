@@ -264,7 +264,7 @@ In order words, this is how we want the design to look like:
                             /         |         \
                            /          |         [*]
         [Pooly.PoolSupervisor]        |
-            /             \           [*]
+            /             \          [*]
         [Pooly.Server]   [Pooly.WorkerSupervisor]
 ```
 
