@@ -21,5 +21,9 @@ defmodule Pooly do
     Pooly.Server.checkin(worker_pid)
   end
 
+  def status do
+    Pooly.Server.status
+  end
+
 end
 
