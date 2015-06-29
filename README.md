@@ -1,6 +1,8 @@
 Pooly
 =====
 
+![](http://i.imgur.com/NobRZq0.png)
+
 > Definition of POOLY
 >
 >   having many pools
