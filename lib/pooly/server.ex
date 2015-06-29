@@ -45,18 +45,27 @@ defmodule Pooly.Server do
     {:ok, state}
   end
 
-  def handle_call(:checkout, _from, %{workers: workers} = state) do
+  def handle_call(:checkout, {from_pid, _ref}, %{workers: workers, monitors: monitors} = state) do
     case workers do
-      [first | rest] ->
-        {:reply, first, %{state | workers: rest}}
+      [worker|rest] ->
+        ref = Process.monitor(from_pid)
+        true = :ets.insert(monitors, {worker, ref})
+        {:reply, worker, %{state | workers: rest}}
 
       [] ->
         {:reply, :noproc, state}
     end
   end
 
-  def handle_cast({:checkin, worker_pid}, %{workers: workers} = state) do
-    {:noreply, %{state | workers: [worker_pid|workers]}}
+  def handle_cast({:checkin, worker}, %{workers: workers, monitors: monitors} = state) do
+    case :ets.lookup(monitors, worker) do
+      [{pid, ref}] ->
+        true = Process.demonitor(ref)
+        true = :ets.delete(monitors, pid)
+        {:noreply, %{state | workers: [pid|workers]}}
+      [] ->
+        {:noreply, state}
+    end
   end
 
   def handle_info(:start_worker_supervisor, state = %{sup: sup, mfa: mfa, size: size}) do
