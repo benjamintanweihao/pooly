@@ -3,11 +3,11 @@ defmodule Pooly.Server do
   import Supervisor.Spec
 
   defmodule State do
-    defstruct sup: nil, worker_sup: nil, monitors: nil, size: nil, workers: nil, mfa: nil
+    defstruct worker_sup: nil, monitors: nil, size: nil, workers: nil, mfa: nil
   end
 
-  def start_link(sup, pool_config) do
-    GenServer.start_link(__MODULE__, [sup, pool_config], name: __MODULE__)
+  def start_link(pool_config) do
+    GenServer.start_link(__MODULE__, [pool_config], name: __MODULE__)
   end
 
   def checkout do
@@ -26,10 +26,10 @@ defmodule Pooly.Server do
   # Callbacks #
   #############
 
-  def init([sup, pool_config]) when is_pid(sup) do
+  def init([pool_config]) do
     Process.flag(:trap_exit, true)
     monitors = :ets.new(:monitors, [:private])
-    init(pool_config, %State{sup: sup, monitors: monitors})
+    init(pool_config, %State{monitors: monitors})
   end
 
   def init([{:mfa, mfa}|rest], state) do
@@ -77,8 +77,8 @@ defmodule Pooly.Server do
     end
   end
 
-  def handle_info(:start_worker_supervisor, state = %{sup: sup, mfa: mfa, size: size}) do
-    {:ok, worker_sup} = Supervisor.start_child(sup, supervisor_spec(mfa))
+  def handle_info(:start_worker_supervisor, state = %{mfa: mfa, size: size}) do
+    {:ok, worker_sup} = Supervisor.start_child(Pooly.WorkersSupervisor, supervisor_spec(mfa))
     workers = prepopulate(size, worker_sup)
     {:noreply, %{state | worker_sup: worker_sup, workers: workers}}
   end
