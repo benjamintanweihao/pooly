@@ -152,7 +152,7 @@ __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 * Supports a _fixed_ number of workers
 * No queuing
 * No blocking
-* recovery when consumer and/or worker process fail
+* Recovery when consumer and/or worker process fail
 
 ### Linking
 
@@ -290,6 +290,7 @@ The `Pooly.PoolStarter` process is a simple GenServer that is stateless, since t
 ## Features
 
 * Transactions
+* Timeouts when checking out
 * Queuing 
 * Blocking
 
