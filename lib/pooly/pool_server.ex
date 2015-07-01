@@ -106,7 +106,7 @@ defmodule Pooly.PoolServer do
         new_state = %{state | workers: [new_worker(pool_sup)|workers]}
         {:noreply, new_state}
 
-      [[]] ->
+      _ ->
         {:noreply, state}
     end
   end
