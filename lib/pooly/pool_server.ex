@@ -134,7 +134,7 @@ defmodule Pooly.PoolServer do
   end
 
   defp supervisor_spec(name, mfa) do
-    opts = [id: :random.uniform <> "WorkerSupervisor", shutdown: 10000, restart: :temporary]
+    opts = [id: name <> "WorkerSupervisor", shutdown: 10000, restart: :temporary]
     supervisor(Pooly.WorkerSupervisor, [mfa], opts)
   end
 
