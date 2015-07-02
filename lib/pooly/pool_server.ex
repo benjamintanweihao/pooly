@@ -98,6 +98,10 @@ defmodule Pooly.PoolServer do
     end
   end
 
+  def handle_info({:EXIT, worker_sup, reason}, state = %{worker_sup: worker_sup}) do
+    {:stop, reason, state}
+  end
+
   def handle_info({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, pool_sup: pool_sup}) do
     case :ets.lookup(monitors, pid) do
       [{pid, ref}] ->
@@ -109,6 +113,10 @@ defmodule Pooly.PoolServer do
       _ ->
         {:noreply, state}
     end
+  end
+
+  def terminate(_reason, state) do
+    :ok
   end
 
   #####################
@@ -134,8 +142,10 @@ defmodule Pooly.PoolServer do
   end
 
   defp supervisor_spec(name, mfa) do
+    # NOTE: The reason this is set to temporary is because the WorkerSupervisor
+    #       is started by the PoolServer.
     opts = [id: name <> "WorkerSupervisor", shutdown: 10000, restart: :temporary]
-    supervisor(Pooly.WorkerSupervisor, [mfa], opts)
+    supervisor(Pooly.WorkerSupervisor, [self, mfa], opts)
   end
 
 end
