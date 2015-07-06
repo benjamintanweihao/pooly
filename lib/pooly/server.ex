@@ -15,7 +15,7 @@ defmodule Pooly.Server do
   end
 
   def checkin(pool_name, worker_pid) do
-    GenServer.call(:"#{pool_name}Server", {:checkin, worker_pid})
+    GenServer.cast(:"#{pool_name}Server", {:checkin, worker_pid})
   end
 
   def status(pool_name) do
