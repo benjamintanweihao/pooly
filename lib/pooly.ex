@@ -24,6 +24,10 @@ defmodule Pooly do
     Pooly.Server.checkin(pool_name, worker_pid)
   end
 
+  def transaction(pool_name, fun) do
+    Pooly.Server.transaction(pool_name, fun)
+  end
+
   def status(pool_name) do
     Pooly.Server.status(pool_name)
   end
