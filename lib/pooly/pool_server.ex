@@ -7,19 +7,19 @@ defmodule Pooly.PoolServer do
   end
 
   def start_link(pool_sup, pool_config) do
-    GenServer.start_link(__MODULE__, [pool_sup, pool_config])
+    GenServer.start_link(__MODULE__, [pool_sup, pool_config], name: name(pool_config[:name]))
   end
 
-  def checkout do
-    GenServer.call(__MODULE__, :checkout)
+  def checkout(pool_name) do
+    GenServer.call(name(pool_name), :checkout)
   end
 
-  def checkin(worker_pid) do
-    GenServer.cast(__MODULE__, {:checkin, worker_pid})
+  def checkin(pool_name, worker_pid) do
+    GenServer.cast(name(pool_name), {:checkin, worker_pid})
   end
 
-  def status do
-    GenServer.call(__MODULE__, :status)
+  def status(pool_name) do
+    GenServer.call(name(pool_name), :status)
   end
 
   #############
@@ -115,13 +115,17 @@ defmodule Pooly.PoolServer do
     end
   end
 
-  def terminate(_reason, state) do
+  def terminate(_reason, _state) do
     :ok
   end
 
   #####################
   # Private Functions #
   #####################
+
+  defp name(pool_name) do
+    :"#{pool_name}Server"
+  end
 
   defp prepopulate(size, sup) do
     prepopulate(size, sup, [])

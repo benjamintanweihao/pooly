@@ -2,9 +2,29 @@ defmodule Pooly.Server do
   use GenServer
   import Supervisor.Spec
 
+  #######
+  # API #
+  #######
+
   def start_link(pools_config) do
     GenServer.start_link(__MODULE__, pools_config, name: __MODULE__)
   end
+
+  def checkout(pool_name) do
+    GenServer.call(:"#{pool_name}Server", :checkout)
+  end
+
+  def checkin(pool_name, worker_pid) do
+    GenServer.call(:"#{pool_name}Server", {:checkin, worker_pid})
+  end
+
+  def status(pool_name) do
+    GenServer.call(:"#{pool_name}Server", :status)
+  end
+
+  #############
+  # Callbacks #
+  #############
 
   def init(pools_config) do
     pools_config |> Enum.each(fn(pool_config) ->
@@ -19,9 +39,14 @@ defmodule Pooly.Server do
     {:noreply, state}
   end
 
+  #####################
+  # Private Functions #
+  #####################
+
   defp supervisor_spec(pool_config) do
-    # WHAT SHOULD BE GOOD VALUES
-    opts = [id: pool_config[:name] <> "PoolSupervisor"]
+    # TODO: WHAT SHOULD BE GOOD VALUES
+    # NOTE: This needs to be random because by de
+    opts = [id: :"#{pool_config[:name]}Supervisor"]
     supervisor(Pooly.PoolSupervisor, [pool_config], opts)
   end
 
