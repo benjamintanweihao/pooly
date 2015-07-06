@@ -2,6 +2,8 @@ defmodule Pooly.Server do
   use GenServer
   import Supervisor.Spec
 
+  @timeout 5000
+
   #######
   # API #
   #######
@@ -11,15 +13,19 @@ defmodule Pooly.Server do
   end
 
   def checkout(pool_name) do
-    GenServer.call(:"#{pool_name}Server", :checkout)
+    GenServer.call(:"#{pool_name}Server", :checkout, @timeout)
+  end
+
+  def checkout(pool_name, timeout) do
+    GenServer.call(:"#{pool_name}Server", :checkout, timeout)
   end
 
   def checkin(pool_name, worker_pid) do
     GenServer.cast(:"#{pool_name}Server", {:checkin, worker_pid})
   end
 
-  def transaction(pool_name, fun) do
-    worker = checkout(pool_name)
+  def transaction(pool_name, fun, timeout \\ @timeout) do
+    worker = checkout(pool_name, timeout)
     try do
       fun.(worker)
     after
@@ -45,6 +51,7 @@ defmodule Pooly.Server do
 
   def handle_info({:start_pool, pool_config}, state) do
     {:ok, _pool_sup} = Supervisor.start_child(Pooly.PoolsSupervisor, supervisor_spec(pool_config))
+
     {:noreply, state}
   end
 
