@@ -8,13 +8,11 @@ defmodule Pooly do
         [name: "Pool1",
          mfa: {SampleWorker, :start_link, []},
          size: 2,
-         overflow: 5,
          max_overflow: 10
         ],
         [name: "Pool2",
          mfa: {SampleWorker, :start_link, []},
          size: 2,
-         overflow: 0,
          max_overflow: 0
         ],
       ]

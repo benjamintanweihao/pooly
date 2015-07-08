@@ -40,7 +40,7 @@ defmodule Pooly.PoolServer do
     Process.flag(:trap_exit, true)
     monitors = :ets.new(:monitors, [:private])
     waiting  = :queue.new
-    state    = %State{pool_sup: pool_sup, monitors: monitors, waiting: waiting}
+    state    = %State{pool_sup: pool_sup, monitors: monitors, waiting: waiting, overflow: 0}
 
     init(pool_config, state)
   end
@@ -55,10 +55,6 @@ defmodule Pooly.PoolServer do
 
   def init([{:size, size}|rest], state) do
     init(rest, %{state | size: size})
-  end
-
-  def init([{:overflow, overlow}|rest], state) do
-    init(rest, %{state | overflow: overlow})
   end
 
   def init([{:max_overflow, max_overflow}|rest], state) do
