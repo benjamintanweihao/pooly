@@ -152,7 +152,7 @@ __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 * Supports a _fixed_ number of workers
 * No queuing
 * No blocking
-* Recovery when consumer and/or worker process fail
+* recovery when consumer and/or worker process fail
 
 ### Linking
 
@@ -290,7 +290,6 @@ The `Pooly.PoolStarter` process is a simple GenServer that is stateless, since t
 ## Features
 
 * Transactions
-* Timeouts when checking out
 * Queuing 
 * Blocking
 
@@ -301,4 +300,3 @@ Up until now, it is the onus of the consumer process to check back in a worker p
 ### Blocking and Queuing
 
 When all workers are busy, a consumer that is willing to wait (`block` is `true`) will be queued up. For a consumer that blocks, once a worker is checked back into the pool, the consumer is then unblocked and given the worker.
-
