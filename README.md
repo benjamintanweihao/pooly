@@ -47,7 +47,7 @@ pools_config =
 P.start_pool(pool_config)
 ```
 
-### Stoppng a pool
+### Stopping a pool
 
 ```elixir
 P.stop_pool("Pool1")
