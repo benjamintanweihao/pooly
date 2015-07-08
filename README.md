@@ -13,8 +13,6 @@ _Pooly_ is a worker pool library inspired by other Erlang worker pool libraries 
 
 The whole point of this exercise is to make this project a part of the example project in Chapter 6 of the [book](http://www.exotpbook.com).
 
-## WORK IN PROGRESS
-
 ## API 
 
 ```elixir
@@ -26,32 +24,63 @@ P.stop
 
 ### Starting a pool
 
-This creates a named pool, attach it to the top-level supervisor and starts a bunch of workers (according to `worker_args`).
+This creates a named pool, attach it to the top-level supervisor and starts a bunch of workers.
 
 ### Worker Arguments
 
 ```elixir
+pools_config =
+  [
+    [name: "Pool1",
+      mfa: {SampleWorker, :start_link, []},
+      size: 2,
+      max_overflow: 10
+    ],
+    [name: "Pool2",
+      mfa: {SampleWorker, :start_link, []},
+      size: 2,
+      max_overflow: 0
+    ],
+  ]
+
+
 P.start_pool(pool_config)
-P.stop_pool(pool)
 ```
 
-where `pool_config` consists of:
+### Stoppng a pool
 
-```
-name:          the pool name
-mfa:           the module, function and arguments to start the workers
-size:          maximum pool size
-max_overflow:  maximum number of workers created if pool is empty
+```elixir
+P.stop_pool("Pool1")
 ```
 
 ### Getting workers
 
+This is the most basic version:
+
 ```elixir
-P.sync_checkout(pool, timeout)
-P.async_checkout(pool, timeout)
-P.checkin(pool, worker)
-P.transaction(pool, fun, timeout)
-P.status(pool)
+pid = P.checkout("Pool1")
+```
+
+`checkout/3` takes two other arguments. `block` (boolean) and `timeout`. The defaults are `true` and `5000` respectively. If `block` is true, the consumer process will wait for `timeout` milliseconds before timing out. Note that you can pass in `:infinity` as a timeout value.
+
+For example, this consumer process will wait indefinitely for a process to be available:
+
+```elixir
+worker_pid = P.checkout("Pool1", true, :infinity)
+```
+
+### Return workers back to the pool
+
+Returning workers is straightforward:
+
+```elixir
+P.checkin("Pool1", worker_pid) do
+```
+
+### Getting the status of a pool
+
+```elixir
+P.status("Pool1")
 ```
 
 # Version 1
