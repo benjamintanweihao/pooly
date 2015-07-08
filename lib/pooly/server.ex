@@ -13,15 +13,15 @@ defmodule Pooly.Server do
   end
 
   def checkout(pool_name) do
-    GenServer.call(:"#{pool_name}Server", :checkout, @timeout)
+    Pooly.PoolServer.checkout(pool_name, @timeout)
   end
 
   def checkout(pool_name, timeout) do
-    GenServer.call(:"#{pool_name}Server", :checkout, timeout)
+    Pooly.PoolServer.checkout(pool_name, timeout)
   end
 
   def checkin(pool_name, worker_pid) do
-    GenServer.cast(:"#{pool_name}Server", {:checkin, worker_pid})
+    Pooly.PoolServer.checkin(pool_name, worker_pid)
   end
 
   def transaction(pool_name, fun, timeout \\ @timeout) do
@@ -34,7 +34,7 @@ defmodule Pooly.Server do
   end
 
   def status(pool_name) do
-    GenServer.call(:"#{pool_name}Server", :status)
+    Pooly.PoolServer.status(pool_name)
   end
 
   #############
