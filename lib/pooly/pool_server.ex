@@ -70,7 +70,7 @@ defmodule Pooly.PoolServer do
     init(rest, state)
   end
 
-  def handle_call({:checkout, block, consumer_ref}, {from_pid, _ref}, state) do
+  def handle_call({:checkout, block, consumer_ref}, {from_pid, _ref} = from, state) do
     # NOTE: you _cannot_ write state = %{workers: worker}
     %{worker_sup:   worker_sup,
       workers:      workers,
@@ -92,7 +92,7 @@ defmodule Pooly.PoolServer do
 
       [] when block == true ->
         ref = Process.monitor(from_pid)
-        waiting = :queue.in({from_pid, consumer_ref, ref}, waiting)
+        waiting = :queue.in({from, consumer_ref, ref}, waiting)
         {:noreply, %{state | waiting: waiting}, :infinity}
 
       [] ->
@@ -145,7 +145,7 @@ defmodule Pooly.PoolServer do
 
   def handle_info({:EXIT, pid, _reason}, state = %{monitors: monitors, workers: workers, worker_sup: worker_sup}) do
     case :ets.lookup(monitors, pid) do
-      [{pid, ref}] ->
+      [{pid, _consumer_ref, ref}] ->
         true = Process.demonitor(ref)
         true = :ets.delete(monitors, pid)
         new_state = handle_worker_exit(pid, state)
@@ -219,9 +219,9 @@ defmodule Pooly.PoolServer do
       overflow:     overflow} = state
 
     case :queue.out(waiting) do
-      {{:value, {from_pid, ref}}, left} ->
-        true = :ets.insert(monitors, {pid, ref})
-        GenServer.reply(from_pid, pid)
+      {{:value, {from, consumer_ref, ref}}, left} ->
+        true = :ets.insert(monitors, {pid, consumer_ref, ref})
+        GenServer.reply(from, pid)
         %{state | waiting: left}
 
         # what case? this seems to handle an inconsistent state
@@ -243,9 +243,9 @@ defmodule Pooly.PoolServer do
       overflow:     overflow} = state
 
     case :queue.out(waiting) do
-      {{:value, {from, ref}}, left} ->
+      {{:value, {from, consumer_ref, ref}}, left} ->
         new_worker = new_worker(worker_sup)
-        true = :ets.insert(monitors, {new_worker, ref})
+        true = :ets.insert(monitors, {new_worker, consumer_ref, ref})
         GenServer.reply(from, new_worker)
         %{state | waiting: left}
 
