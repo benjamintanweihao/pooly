@@ -5,8 +5,18 @@ defmodule Pooly do
     # This is an example on how to start the Pooly
     pools_config =
       [
-        [name: "Pool1", mfa: {SampleWorker, :start_link, []}, size: 2],
-        [name: "Pool2", mfa: {SampleWorker, :start_link, []}, size: 2],
+        [name: "Pool1",
+         mfa: {SampleWorker, :start_link, []},
+         size: 2,
+         overflow: 5,
+         max_overflow: 10
+        ],
+        [name: "Pool2",
+         mfa: {SampleWorker, :start_link, []},
+         size: 2,
+         overflow: 0,
+         max_overflow: 0
+        ],
       ]
 
     Pooly.Supervisor.start_link(pools_config)
