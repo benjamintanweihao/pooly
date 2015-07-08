@@ -13,8 +13,6 @@ _Pooly_ is a worker pool library inspired by other Erlang worker pool libraries 
 
 The whole point of this exercise is to make this project a part of the example project in Chapter 6 of the [book](http://www.exotpbook.com).
 
-## WORK IN PROGRESS
-
 ## API 
 
 ```elixir
@@ -26,32 +24,63 @@ P.stop
 
 ### Starting a pool
 
-This creates a named pool, attach it to the top-level supervisor and starts a bunch of workers (according to `worker_args`).
+This creates a named pool, attach it to the top-level supervisor and starts a bunch of workers.
 
 ### Worker Arguments
 
 ```elixir
+pools_config =
+  [
+    [name: "Pool1",
+      mfa: {SampleWorker, :start_link, []},
+      size: 2,
+      max_overflow: 10
+    ],
+    [name: "Pool2",
+      mfa: {SampleWorker, :start_link, []},
+      size: 2,
+      max_overflow: 0
+    ],
+  ]
+
+
 P.start_pool(pool_config)
-P.stop_pool(pool)
 ```
 
-where `pool_config` consists of:
+### Stoppng a pool
 
-```
-name:          the pool name
-mfa:           the module, function and arguments to start the workers
-size:          maximum pool size
-max_overflow:  maximum number of workers created if pool is empty
+```elixir
+P.stop_pool("Pool1")
 ```
 
 ### Getting workers
 
+This is the most basic version:
+
 ```elixir
-P.sync_checkout(pool, timeout)
-P.async_checkout(pool, timeout)
-P.checkin(pool, worker)
-P.transaction(pool, fun, timeout)
-P.status(pool)
+pid = P.checkout("Pool1")
+```
+
+`checkout/3` takes two other arguments. `block` (boolean) and `timeout`. The defaults are `true` and `5000` respectively. If `block` is true, the consumer process will wait for `timeout` milliseconds before timing out. Note that you can pass in `:infinity` as a timeout value.
+
+For example, this consumer process will wait indefinitely for a process to be available:
+
+```elixir
+worker_pid = P.checkout("Pool1", true, :infinity)
+```
+
+### Return workers back to the pool
+
+Returning workers is straightforward:
+
+```elixir
+P.checkin("Pool1", worker_pid) do
+```
+
+### Getting the status of a pool
+
+```elixir
+P.status("Pool1")
 ```
 
 # Version 1
@@ -63,7 +92,6 @@ Although the first version is the most basic, it will get us a pretty long way, 
 * Supports a _single_ pool
 * Supports a _fixed_ number of workers
 * No queuing
-* No blocking
 * No recovery when consumer and/or worker process fail
 
 ## Details
@@ -151,7 +179,6 @@ __TODO:__ _Create a sample worker and put `Pooly` through its paces_
 * Supports a _single_ pool
 * Supports a _fixed_ number of workers
 * No queuing
-* No blocking
 * recovery when consumer and/or worker process fail
 
 ### Linking
@@ -193,7 +220,8 @@ The most straight forward way would be to design the supervision tree like so:
 
 We are essentially sticking more `WorkerSupervisor`'s into `Pooly.Supervisor`. This is a bad design. The issue here is the _error kernel_. Issues with any of the `WorkerSupervisor`s shouldn't affect the `Pooly.Server`. (More reasons needed, separation of concerns). It pays to think about what happens when a process crashes and who gets affected.
 
-Fortunately, the fix is to add another supervisor to handle all the worker supervisors - `Pooly.WorkersSupervisor`. This is the design we are shooting for:
+
+The fix is to add another supervisor to handle all the worker supervisors, say a `Pooly.WorkersSupervisor`. This _might_ design we are shooting for:
 
 ```
               [Pooly.Supervisor]
@@ -206,45 +234,9 @@ Fortunately, the fix is to add another supervisor to handle all the worker super
                           [Pooly.WorkerSupervisor]
 ```
 
-### Supporting a variable number of workers
-
-Next, we want to add some flexibility to `Pooly`. In particular, we want to specify a _maximum overflow_ of workers. What does this buy us? Consider the following scenario. (More research. See Sasa's [article](www.theerlangelist.com/2013/04/parallelizing-independent-tasks.html) on setting size to zero and overflow to 5, essentially for _dynamic_ workers)
-
-### Server state
-
-```elixir
-defmodule State do
-  defstruct supervisor: nil,
-            workers: [],
-            monitors: :ets.new(:monitors, [:private]),
-            size: 5,
-            overflow: 0,
-            max_overflow: 10,
-end
-```
-
-### Running it
-
-__TODO:__ _Create a sample worker and put `Pooly` through its paces_
-
-# Version 4
-
-In this version, we are going to fix a glaring deficiency from the previous version.
+Do you notice another problem?
 
 Currently, the poor `Pooly.Server` process has to handle every request that is meant for _any_ pool.
-
-
-```
-              [Pooly.Supervisor]
-                /            \
-               /              \
-        [Pooly.Server]    [Pooly.WorkersSupervisor]
-                            /         |         \
-                           /          |   [Pooly.WorkerSupervisor]
-        [Pooly.WorkerSupervisor]      |
-                          [Pooly.WorkerSupervisor]
-```
-
 
 This means that the lone server process might pose a bottle neck if messages to it come fast and furious, and could potentially flood it's mailbox. `Pooly.Server` also presents a single point of failure, since it contains the state of _every_ pool, and having the server process dead renders the pools useless.
 
@@ -285,13 +277,29 @@ In order words, this is how we want the design to look like:
 
 The `Pooly.PoolStarter` process is a simple GenServer that is stateless, since there is not need for it to keep any.
 
-# Version 5
+
+### Server state
+
+```elixir
+defmodule State do
+  defstruct pool_sup: nil,
+  worker_sup: nil,
+  monitors: nil,
+  monitors: nil,
+  size: nil,
+  workers: nil,
+  name: nil,
+  mfa: nil,
+end
+```
+
+# Version 4
 
 ## Features
 
 * Transactions
-* Queuing 
-* Blocking
+* Overflowing of workers
+* Waiting and Queuing 
 
 ### Implementing automatic checkout/checkin with transactions
 
@@ -299,4 +307,28 @@ Up until now, it is the onus of the consumer process to check back in a worker p
 
 ### Blocking and Queuing
 
-When all workers are busy, a consumer that is willing to wait (`block` is `true`) will be queued up. For a consumer that blocks, once a worker is checked back into the pool, the consumer is then unblocked and given the worker.
+When all workers are busy, a consumer that is willing to wait will be queued up. In this implementation, that is the default behaviour. It is relatively straightforward to implement a non-blocking consumer. (Just have a parameter which says `block`, and if it says `false`, return something like `{:error, full}`)
+
+For a consumer that blocks, once a worker is checked back into the pool, the consumer is then unblocked and given the worker.
+
+### Supporting a variable number of workers
+
+Next, we want to add some flexibility to `Pooly`. In particular, we want to specify a _maximum overflow_ of workers. What does this buy us? Consider the following scenario. (More research. See Sasa's [article](www.theerlangelist.com/2013/04/parallelizing-independent-tasks.html) on setting size to zero and overflow to 5, essentially for _dynamic_ workers)
+
+### Server state
+
+```elixir
+defmodule State do
+  defstruct pool_sup: nil,
+  worker_sup: nil,
+  monitors: nil,
+  monitors: nil,
+  size: nil,
+  workers: nil,
+  name: nil,
+  mfa: nil,
+  waiting: nil,
+  overflow: nil,
+  max_overflow: nil
+end
+```
