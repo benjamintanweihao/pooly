@@ -5,7 +5,7 @@ defmodule Pooly.WorkerSupervisor do
     Supervisor.start_link(__MODULE__, mfa)
   end
 
-  def init({m,f,a} = x) do
+  def init({m,f,a}) do
     worker_opts = [restart:  :temporary,
                    shutdown: 5000,
                    function: f]
