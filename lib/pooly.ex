@@ -2,11 +2,8 @@ defmodule Pooly do
   use Application
 
   def start(_type, _args) do
-    # This is an example on how to start the Pooly
-    pool_config = [mfa: {SampleWorker, :start_link, []},
-                   size: 5]
-
-    Pooly.Supervisor.start_link(pool_config)
+    pool_config = [mfa: {SampleWorker, :start_link, []}, size: 5]
+    start_pool(pool_config)
   end
 
   def start_pool(pool_config) do

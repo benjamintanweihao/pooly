@@ -27,7 +27,6 @@ defmodule Pooly.Server do
   #############
 
   def init([sup, pool_config]) when is_pid(sup) do
-    Process.flag(:trap_exit, true)
     monitors = :ets.new(:monitors, [:private])
     init(pool_config, %State{sup: sup, monitors: monitors})
   end
@@ -106,7 +105,7 @@ defmodule Pooly.Server do
   end
 
   defp supervisor_spec(mfa) do
-    opts = [shutdown: 10000, restart: :temporary]
+    opts = [restart: :temporary]
     supervisor(Pooly.WorkerSupervisor, [mfa], opts)
   end
 
