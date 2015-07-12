@@ -4,7 +4,6 @@ defmodule Pooly do
   @timeout 5000
 
   def start(_type, _args) do
-    # This is an example on how to start the Pooly
     pools_config =
       [
         [name: "Pool1",
@@ -19,7 +18,7 @@ defmodule Pooly do
         ],
       ]
 
-    Pooly.Supervisor.start_link(pools_config)
+    start_pool(pools_config)
   end
 
   def start_pools(pools_config) do
