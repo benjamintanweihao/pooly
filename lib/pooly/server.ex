@@ -131,7 +131,7 @@ defmodule Pooly.Server do
   end
 
   defp supervisor_spec(mfa) do
-    opts = [shutdown: 10000, restart: :temporary]
+    opts = [restart: :temporary]
     supervisor(Pooly.WorkerSupervisor, [mfa], opts)
   end
 
