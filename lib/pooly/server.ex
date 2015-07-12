@@ -44,8 +44,6 @@ defmodule Pooly.Server do
   #####################
 
   defp supervisor_spec(pool_config) do
-    # TODO: WHAT SHOULD BE GOOD VALUES
-    # NOTE: This needs to be random because by de
     opts = [id: :"#{pool_config[:name]}Supervisor"]
     supervisor(Pooly.PoolSupervisor, [pool_config], opts)
   end
