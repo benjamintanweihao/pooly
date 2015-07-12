@@ -6,7 +6,7 @@ defmodule Pooly do
     pool_config = [mfa: {SampleWorker, :start_link, []},
                    size: 5]
 
-    Pooly.Supervisor.start_link(pool_config)
+    start_pool(pool_config)
   end
 
   def start_pool(pool_config) do
