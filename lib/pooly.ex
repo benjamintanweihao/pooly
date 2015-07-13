@@ -18,7 +18,7 @@ defmodule Pooly do
         ],
       ]
 
-    start_pool(pools_config)
+    start_pools(pools_config)
   end
 
   def start_pools(pools_config) do
