@@ -10,9 +10,7 @@ defmodule Pooly.Supervisor do
       worker(Pooly.Server, [self, pool_config])
     ]
 
-    opts = [strategy: :one_for_all,
-            max_restart: 1,
-            max_time: 3600]
+    opts = [strategy: :one_for_all]
 
     supervise(children, opts)
   end
