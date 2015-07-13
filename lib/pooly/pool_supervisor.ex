@@ -3,7 +3,7 @@ defmodule Pooly.PoolSupervisor do
 
   def start_link(pool_config) do
     # NOTE: :name must be an atom!
-    Supervisor.start_link(__MODULE__, pool_config, [name: :"#{pool_config[:name]}Supervisor"])
+    Supervisor.start_link(__MODULE__, pool_config)
   end
 
   def init(pool_config) do
