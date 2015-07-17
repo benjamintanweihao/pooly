@@ -22,6 +22,10 @@ defmodule Pooly.PoolServer do
     GenServer.call(name(pool_name), :status)
   end
 
+   def terminate(_reason, _state) do
+     :ok
+   end
+
   #############
   # Callbacks #
   ############j
@@ -113,10 +117,6 @@ defmodule Pooly.PoolServer do
       _ ->
         {:noreply, state}
     end
-  end
-
-  def terminate(_reason, _state) do
-    :ok
   end
 
   #####################

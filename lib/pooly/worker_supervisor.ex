@@ -2,7 +2,7 @@ defmodule Pooly.WorkerSupervisor do
   use Supervisor
 
   def start_link(pool_server, {_,_,_} = mfa) do
-    Supervisor.start_link(__MODULE__, pool_config, name: :"#{pool_config[:name]}Supervisor")
+    Supervisor.start_link(__MODULE__, [pool_server, mfa])
   end
 
   def init([pool_server, {m,f,a}]) do
