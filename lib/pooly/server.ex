@@ -100,7 +100,6 @@ defmodule Pooly.Server do
 
   defp new_worker(sup) do
     {:ok, worker} = Supervisor.start_child(sup, [[]])
-    Process.link(worker)
     worker
   end
 
