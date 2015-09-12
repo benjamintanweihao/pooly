@@ -5,7 +5,8 @@ defmodule Pooly do
     pools_config =
       [
         [name: "Pool1", mfa: {SampleWorker, :start_link, []}, size: 2],
-        [name: "Pool2", mfa: {SampleWorker, :start_link, []}, size: 2],
+        [name: "Pool2", mfa: {SampleWorker, :start_link, []}, size: 3],
+        [name: "Pool3", mfa: {SampleWorker, :start_link, []}, size: 4],
       ]
 
     start_pools(pools_config)
