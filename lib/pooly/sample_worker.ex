@@ -9,7 +9,6 @@ defmodule SampleWorker do
     GenServer.call(pid, :stop)
   end
 
-
   def work_for(pid, duration) do
     GenServer.cast(pid, {:work_for, duration})
   end

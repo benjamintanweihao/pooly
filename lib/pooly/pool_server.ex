@@ -254,7 +254,7 @@ defmodule Pooly.PoolServer do
       {:empty, empty} when overflow > 0 ->
         %{state | overflow: overflow-1, waiting: empty}
 
-      # NOTE: We need to create a anotehr worker because this
+      # NOTE: We need to create a another worker because this
       #       worker was _not_ dynamically created.
       {:empty, empty} ->
         workers = [new_worker(worker_sup) | workers |> Enum.reject(fn(p) -> p != pid end)]
